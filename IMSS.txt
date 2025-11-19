@@ -1,0 +1,189 @@
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+typedef struct Patient {
+    char lastName[50];
+    char firstName[50];
+    char treatment[100];
+    char gender;
+    int age;
+
+    struct Patient *next;
+    struct Patient *prev;
+} Patient;
+
+Patient *head = NULL;
+Patient *tail = NULL;
+
+/*********************************
+        FUNCTION PROTOTYPES
+**********************************/
+void menu();
+void addPatient();
+void printPatients();
+void deletePatient();
+void updateTreatment();
+
+/*********************************
+        MAIN FUNCTION
+**********************************/
+int main() {
+    int choice;
+
+    do {
+        menu();
+        printf("Select an option: ");
+        scanf("%d", &choice);
+        getchar(); // clear newline
+
+        switch (choice) {
+            case 1: printPatients(); break;
+            case 2: addPatient(); break;
+            case 3: deletePatient(); break;
+            case 4: updateTreatment(); break;
+            case 5: printf("Goodbye, doctor!\n"); break;
+            default: printf("Invalid option.\n");
+        }
+
+    } while (choice != 5);
+
+    return 0;
+}
+
+/*********************************
+            MENU
+**********************************/
+void menu() {
+    printf("\n==========================\n");
+    printf("       IMSS SYSTEM\n");
+    printf("==========================\n");
+    printf("1. Print all patients\n");
+    printf("2. Add patient\n");
+    printf("3. Delete patient\n");
+    printf("4. Update patient treatment\n");
+    printf("5. Exit\n");
+    printf("==========================\n");
+}
+
+/*********************************
+      ADD PATIENT
+**********************************/
+void addPatient() {
+    Patient *newP = (Patient*)malloc(sizeof(Patient));
+
+    if (!newP) {
+        printf("Memory allocation failed!\n");
+        return;
+    }
+
+    printf("Enter last name: ");
+    scanf("%s", newP->lastName);
+
+    printf("Enter first name: ");
+    scanf("%s", newP->firstName);
+
+    printf("Enter gender (M/F): ");
+    scanf(" %c", &newP->gender);
+
+    printf("Enter age: ");
+    scanf("%d", &newP->age);
+    getchar();
+
+    printf("Enter treatment: ");
+    fgets(newP->treatment, 100, stdin);
+    newP->treatment[strcspn(newP->treatment, "\n")] = 0; // remove newline
+
+    newP->next = NULL;
+    newP->prev = tail;
+
+    if (tail) tail->next = newP;
+    else head = newP;
+
+    tail = newP;
+
+    printf("Patient added!\n");
+}
+
+/*********************************
+      PRINT PATIENTS
+**********************************/
+void printPatients() {
+    Patient *temp = head;
+
+    if (!temp) {
+        printf("No patients in file.\n");
+        return;
+    }
+
+    printf("\n=== Patient List ===\n");
+    while (temp) {
+        printf("%s, %s | Age: %d | Gender: %c | Treatment: %s\n",
+               temp->lastName,
+               temp->firstName,
+               temp->age,
+               temp->gender,
+               temp->treatment);
+        temp = temp->next;
+    }
+}
+
+/*********************************
+      DELETE PATIENT
+**********************************/
+void deletePatient() {
+    if (!head) {
+        printf("No patients to delete.\n");
+        return;
+    }
+
+    char last[50];
+    printf("Enter last name of patient to delete: ");
+    scanf("%s", last);
+
+    Patient *temp = head;
+
+    while (temp) {
+        if (strcmp(temp->lastName, last) == 0) {
+            if (temp->prev) temp->prev->next = temp->next;
+            else head = temp->next;
+
+            if (temp->next) temp->next->prev = temp->prev;
+            else tail = temp->prev;
+
+            free(temp);
+            printf("Patient deleted.\n");
+            return;
+        }
+        temp = temp->next;
+    }
+
+    printf("Patient not found.\n");
+}
+
+/*********************************
+      UPDATE TREATMENT
+**********************************/
+void updateTreatment() {
+    char last[50];
+    printf("Enter last name of patient to update: ");
+    scanf("%s", last);
+
+    Patient *temp = head;
+
+    while (temp) {
+        if (strcmp(temp->lastName, last) == 0) {
+            printf("Enter new treatment: ");
+            getchar();
+            fgets(temp->treatment, 100, stdin);
+            temp->treatment[strcspn(temp->treatment, "\n")] = 0;
+
+            printf("Treatment updated.\n");
+            return;
+        }
+        temp = temp->next;
+    }
+
+    printf("Patient not found.\n");
+}
