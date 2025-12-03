@@ -1,114 +1,264 @@
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
+/* ============================================================
+   STRUCT DEFINITION
+   ------------------------------------------------------------
+   The Patient struct stores all information about one patient.
+   It also contains `next` and `prev` pointers to create a
+   *doubly linked list*.
+   ============================================================ */
 typedef struct Patient {
-    char lastName[50];
-    char firstName[50];
-    char treatment[100];
-    char gender;
-    int age;
+    char lastName[50];        // Patient's last name
+    char firstName[50];       // Patient's first name
+    char treatment[100];      // Current treatment description
+    char gender;              // 'M' or 'F'
+    unsigned int age;         // Age
 
-    struct Patient *next;
-    struct Patient *prev;
+    struct Patient *next;     // Pointer to next patient in list
+    struct Patient *prev;     // Pointer to previous patient
 } Patient;
 
+/* ============================================================
+   GLOBAL VARIABLES
+   ============================================================ */
+
+// Head of the doubly linked list (first element)
 Patient *head = NULL;
+
+// Tail of the doubly linked list (last element)
 Patient *tail = NULL;
 
-/*********************************
-        FUNCTION PROTOTYPES
-**********************************/
+// Stores the ID of the doctor who logged in
+char globalID[100];
+
+// List of valid doctor IDs allowed to log into system
+const char *VALID_IDS[] = {
+    "Morfin1104",
+    "Alcoverde2302",
+    "Miramontes0199",
+    NULL            // Marks end of list
+};
+
+/* ============================================================
+   FUNCTION PROTOTYPES
+   ============================================================ */
+int login();
 void menu();
 void addPatient();
 void printPatients();
 void deletePatient();
 void updateTreatment();
+void savePatients();
+void loadPatients();
 
-/*********************************
-        MAIN FUNCTION
-**********************************/
+/* ============================================================
+   LOGIN FUNCTION
+   ============================================================ */
+int login() {
+    char input[50];
+    int attempts = 0;
+
+    // Allow up to 5 login attempts
+    while (attempts < 5) {
+
+        printf("Enter system ID: ");
+        scanf("%49s", input);
+
+        int valid = 0;
+        const char *matchedID = NULL;
+
+        // Check input against all valid doctor IDs
+        for (int i = 0; VALID_IDS[i] != NULL; i++) {
+            if (strcmp(input, VALID_IDS[i]) == 0) {
+                valid = 1;
+                matchedID = VALID_IDS[i];
+                break;
+            }
+        }
+
+        // If login successful
+        if (valid) {
+
+            int len = strlen(matchedID);
+
+            // If ID is shorter than expected, just print generic welcome
+            if (len <= 4) {
+                printf("Access granted.\nWelcome, Doctor.\n");
+                strcpy(globalID, matchedID);
+                return 1;
+            }
+
+            // Extract last name from ID by removing last 4 digits
+            char lastName[50];
+            int nameLen = len - 4;    // Remove last 4 characters
+            strncpy(lastName, matchedID, nameLen);
+            lastName[nameLen] = '\0';
+
+            printf("Access granted.\nWelcome, Dr. %s!\n\n", lastName);
+
+            strcpy(globalID, matchedID);
+            return 1;
+        }
+
+        // Failed login
+        attempts++;
+        printf("Access denied. Incorrect ID. (%d/5 attempts used)\n", attempts);
+    }
+
+    printf("\nToo many failed attempts. Program will now close.\n");
+    return 0;
+}
+
+/* ============================================================
+   MAIN FUNCTION
+   ============================================================ */
 int main() {
     int choice;
 
+    // If login fails, exit program immediately
+    if (!login()) {
+        return 0;
+    }
+
+    // Load patient list associated with this doctor's ID
+    loadPatients();
+
+    // Menu loop
     do {
         menu();
         printf("Select an option: ");
         scanf("%d", &choice);
-        getchar(); // clear newline
+        getchar();   // Clear input buffer
 
         switch (choice) {
-            case 1: printPatients(); break;
-            case 2: addPatient(); break;
-            case 3: deletePatient(); break;
-            case 4: updateTreatment(); break;
-            case 5: printf("Goodbye, doctor!\n"); break;
-            default: printf("Invalid option.\n");
+
+            case 1:
+                printPatients();
+                break;
+
+            case 2:
+                addPatient();
+                break;
+
+            case 3:
+                deletePatient();
+                break;
+
+            case 4:
+                updateTreatment();
+                break;
+
+            case 5:
+                savePatients();
+                break;
+
+            case 6:
+                loadPatients();
+                break;
+
+            case 7:
+                printf("Goodbye, doctor!\n");
+                break;
+
+            default:
+                printf("Invalid option.\n");
         }
 
-    } while (choice != 5);
+    } while (choice != 7);
 
     return 0;
 }
 
-/*********************************
-            MENU
-**********************************/
+/* ============================================================
+   MENU PRINT FUNCTION
+   ============================================================ */
 void menu() {
     printf("\n==========================\n");
-    printf("       IMSS SYSTEM\n");
+    printf("        IMSS SYSTEM\n");
     printf("==========================\n");
     printf("1. Print all patients\n");
     printf("2. Add patient\n");
     printf("3. Delete patient\n");
     printf("4. Update patient treatment\n");
-    printf("5. Exit\n");
+    printf("5. Save patients to file\n");
+    printf("6. Load patients from file\n");
+    printf("7. Exit\n");
     printf("==========================\n");
 }
 
-/*********************************
-      ADD PATIENT
-**********************************/
+/* ============================================================
+   ADD PATIENT FUNCTION
+   ------------------------------------------------------------
+   Dynamically allocates a new patient and appends it to the
+   end of the doubly linked list.
+   ============================================================ */
 void addPatient() {
-    Patient *newP = (Patient*)malloc(sizeof(Patient));
+    // Allocate memory for a new patient
+    Patient *p = malloc(sizeof(Patient));
 
-    if (!newP) {
-        printf("Memory allocation failed!\n");
-        return;
+    // Collect user input
+    printf("Last name: ");
+    scanf("%s", p->lastName);
+
+    printf("First name: ");
+    scanf("%s", p->firstName);
+
+    printf("Age: ");
+    scanf("%d", &p->age);
+
+    printf("Gender (M/F): ");
+    scanf(" %c", &p->gender); // space before %c avoids reading newline
+
+    // Treatment selection
+    int tchoice = 0;
+    printf("\nSelect treatment:\n");
+    printf("1. Cavities\n");
+    printf("2. Fillings\n");
+    printf("3. Extraction\n");
+    printf("4. X-Rays\n");
+    printf("5. Impression\n");
+
+    // Force valid treatment choice
+    do {
+        printf("Enter choice (1-5): ");
+        scanf("%d", &tchoice);
+
+        switch (tchoice) {
+            case 1: strcpy(p->treatment, "Cavities"); break;
+            case 2: strcpy(p->treatment, "Fillings"); break;
+            case 3: strcpy(p->treatment, "Extraction"); break;
+            case 4: strcpy(p->treatment, "X-Rays"); break;
+            case 5: strcpy(p->treatment, "Impression"); break;
+            default:
+                printf("Invalid option. Try again.\n");
+                tchoice = 0;
+        }
+    } while (tchoice == 0);
+
+    // Initialize pointers
+    p->next = NULL;
+    p->prev = NULL;
+
+    // If list is empty → new patient becomes first and last
+    if (tail == NULL) {
+        head = p;
+        tail = p;
+    }
+    else {
+        // Append to the end of list
+        tail->next = p;
+        p->prev = tail;
+        tail = p;
     }
 
-    printf("Enter last name: ");
-    scanf("%s", newP->lastName);
-
-    printf("Enter first name: ");
-    scanf("%s", newP->firstName);
-
-    printf("Enter gender (M/F): ");
-    scanf(" %c", &newP->gender);
-
-    printf("Enter age: ");
-    scanf("%d", &newP->age);
-    getchar();
-
-    printf("Enter treatment: ");
-    fgets(newP->treatment, 100, stdin);
-    newP->treatment[strcspn(newP->treatment, "\n")] = 0; // remove newline
-
-    newP->next = NULL;
-    newP->prev = tail;
-
-    if (tail) tail->next = newP;
-    else head = newP;
-
-    tail = newP;
-
-    printf("Patient added!\n");
+    printf("\nPatient added successfully!\n\n");
 }
 
-/*********************************
-      PRINT PATIENTS
-**********************************/
+/* ============================================================
+   PRINT PATIENT LIST
+   ============================================================ */
 void printPatients() {
     Patient *temp = head;
 
@@ -118,6 +268,8 @@ void printPatients() {
     }
 
     printf("\n=== Patient List ===\n");
+
+    // Traverse list from head to tail
     while (temp) {
         printf("%s, %s | Age: %d | Gender: %c | Treatment: %s\n",
                temp->lastName,
@@ -125,13 +277,14 @@ void printPatients() {
                temp->age,
                temp->gender,
                temp->treatment);
+
         temp = temp->next;
     }
 }
 
-/*********************************
-      DELETE PATIENT
-**********************************/
+/* ============================================================
+   DELETE PATIENT BY LAST NAME
+   ============================================================ */
 void deletePatient() {
     if (!head) {
         printf("No patients to delete.\n");
@@ -144,46 +297,166 @@ void deletePatient() {
 
     Patient *temp = head;
 
+    // Search for patient matching last name
     while (temp) {
-        if (strcmp(temp->lastName, last) == 0) {
-            if (temp->prev) temp->prev->next = temp->next;
-            else head = temp->next;
 
-            if (temp->next) temp->next->prev = temp->prev;
-            else tail = temp->prev;
+        if (strcmp(temp->lastName, last) == 0) {
+
+            // Adjust previous link
+            if (temp->prev)
+                temp->prev->next = temp->next;
+            else
+                head = temp->next;
+
+            // Adjust next link
+            if (temp->next)
+                temp->next->prev = temp->prev;
+            else
+                tail = temp->prev;
 
             free(temp);
             printf("Patient deleted.\n");
             return;
         }
+
         temp = temp->next;
     }
 
     printf("Patient not found.\n");
 }
 
-/*********************************
-      UPDATE TREATMENT
-**********************************/
+/* ============================================================
+   UPDATE TREATMENT BY LAST NAME
+   ============================================================ */
 void updateTreatment() {
-    char last[50];
+    char lastName[50];
     printf("Enter last name of patient to update: ");
-    scanf("%s", last);
+    scanf("%s", lastName);
 
-    Patient *temp = head;
+    Patient *curr = head;
 
-    while (temp) {
-        if (strcmp(temp->lastName, last) == 0) {
-            printf("Enter new treatment: ");
-            getchar();
-            fgets(temp->treatment, 100, stdin);
-            temp->treatment[strcspn(temp->treatment, "\n")] = 0;
+    // Search for patient
+    while (curr) {
+        if (strcmp(curr->lastName, lastName) == 0) {
 
-            printf("Treatment updated.\n");
+            int tchoice = 0;
+
+            printf("\nSelect new treatment:\n");
+            printf("1. Cavities\n");
+            printf("2. Fillings\n");
+            printf("3. Extraction\n");
+            printf("4. X-Rays\n");
+            printf("5. Impression\n");
+
+            // Require valid choice
+            do {
+                printf("Enter choice (1-5): ");
+                scanf("%d", &tchoice);
+
+                switch (tchoice) {
+                    case 1: strcpy(curr->treatment, "Cavities"); break;
+                    case 2: strcpy(curr->treatment, "Fillings"); break;
+                    case 3: strcpy(curr->treatment, "Extraction"); break;
+                    case 4: strcpy(curr->treatment, "X-Rays"); break;
+                    case 5: strcpy(curr->treatment, "Impression"); break;
+                    default:
+                        printf("Invalid option. Try again.\n");
+                        tchoice = 0;
+                }
+            } while (tchoice == 0);
+
+            printf("Treatment updated.\n\n");
             return;
         }
+
+        curr = curr->next;
+    }
+
+    printf("Patient not found.\n\n");
+}
+
+/* ============================================================
+   SAVE PATIENT LIST TO BINARY FILE
+   ------------------------------------------------------------
+   Filename is based on the doctor's ID:
+   Example: "Morfin1104_patients.bin"
+   ============================================================ */
+void savePatients() {
+    char filename[150];
+    sprintf(filename, "%s_patients.bin", globalID);
+
+    FILE *fp = fopen(filename, "wb");
+    if (!fp) {
+        printf("Error saving patients.\n");
+        return;
+    }
+
+    // Count number of patients
+    int count = 0;
+    Patient *temp = head;
+    while (temp) {
+        count++;
         temp = temp->next;
     }
 
-    printf("Patient not found.\n");
+    // Write number of patients
+    fwrite(&count, sizeof(int), 1, fp);
+
+    // Write each patient struct
+    temp = head;
+    while (temp) {
+        fwrite(temp, sizeof(Patient), 1, fp);
+        temp = temp->next;
+    }
+
+    fclose(fp);
+    printf("Patients saved to %s\n", filename);
+}
+
+/* ============================================================
+   LOAD PATIENT DATA FROM BINARY FILE
+   ============================================================ */
+void loadPatients() {
+    char filename[150];
+    sprintf(filename, "%s_patients.bin", globalID);
+
+    FILE *fp = fopen(filename, "rb");
+    if (!fp) {
+        printf("No saved patient file found for this ID.\n");
+        return;
+    }
+
+    int count = 0;
+
+    // Read number of records stored
+    fread(&count, sizeof(int), 1, fp);
+
+    // First clear existing list
+    Patient *curr = head;
+    while (curr) {
+        Patient *next = curr->next;
+        free(curr);
+        curr = next;
+    }
+    head = NULL;
+    tail = NULL;
+
+    // Load patients one by one
+    for (int i = 0; i < count; i++) {
+        Patient *p = malloc(sizeof(Patient));
+        fread(p, sizeof(Patient), 1, fp);
+
+        p->next = NULL;
+        p->prev = tail;
+
+        if (tail)
+            tail->next = p;
+        else
+            head = p;
+
+        tail = p;
+    }
+
+    fclose(fp);
+    printf("Loaded %d patients from %s\n", count, filename);
 }
